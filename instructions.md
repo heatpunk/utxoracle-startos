@@ -1,33 +1,52 @@
-# UTXOracle
+# UTXOracle: hourly local price API
 
-UTXOracle estimates the price of Bitcoin from the blockchain itself — no exchange, no API, no price feed. It reads the transaction output values in recent blocks and derives a consensus price from their distribution.
+This independent test build uses your Bitcoin node on this StartOS server.
+It does not contact exchanges or hosted price providers and does not require a VPS.
+The original UTXOracle price calculation is unchanged.
 
-## Documentation
+## Start
 
-- [UTXOracle](https://utxo.live/oracle/) — the upstream project, by [@SteveSimple](https://twitter.com/SteveSimple), including how the method works.
+Keep Bitcoin fully synchronized. Start UTXOracle and leave Configure set to
+**Today** for the rolling recent-block estimate. First calculation can take
+several minutes; then it updates once each UTC hour.
 
-## Before you start
+The **Web UI** interface still displays the original chart. The **Price API**
+interface gives you the exact URL that returns only a value such as `$123 456`.
+The **Price History** interface gives your control panel up to 24 hourly points
+as JSON. Their paths on the same origin are `/price` and `/history.json`.
 
-Install and start **Bitcoin** on the same StartOS server. UTXOracle connects to it over JSON-RPC and authenticates with Bitcoin's own `.cookie` file, so there is no RPC username or password to set up.
+Use the API URL as your panel's source. No image parsing or HTML scraping is
+needed. `/price.json` also returns a numeric price, timestamps and input block
+information. Prices are USD per BTC.
 
-Bitcoin must be **fully synced** before UTXOracle will run — a price derived from a partial chain is not a price.
+## History and errors
 
-## Choosing what to compute
+The history starts with the first real calculation and fills over time; it does
+not pretend to have prices from before installation. It survives restart and is
+included in the service backup. Missing and failed hours are gaps, not invented
+prices.
 
-Use the **Configure** action to choose which price UTXOracle estimates on its next run:
+Before the first calculation, after a failed update, or if data is too old,
+`/price` responds with HTTP 503 instead of pretending that an old price is current.
+`/price.json` keeps the last real result and labels it `stale: true`. The
+Completion health check tracks this condition. Read the service logs if it fails.
+The next scheduled attempt is the next UTC hour.
 
-- **Today** — the price from the most recent blocks. This is the default.
-- **Yesterday** — the consensus price for the previous full UTC day.
-- **Specific Date** — pick a UTC date with the date picker.
+Configure also retains **Yesterday** and **Specific Date** for the original
+historical modes. Changing the mode starts a new history so different kinds of
+prices are not mixed. Historical dates require locally available blocks.
 
-Changing the selection restarts the service and recomputes.
+## Test-package scope
 
-**Today works on a pruned node. A historical date does not** — a pruned node no longer stores those blocks, so the run will fail rather than return a wrong answer. Use an unpruned (archival) Bitcoin node for historical dates.
+This package targets StartOS 0.4.0.2 or newer and keeps the service ID `utxoracle`.
+Back up the existing service before testing an upgrade. Both x86_64 and aarch64
+packages are provided; use the one matching your server. This package is not
+compatible with StartOS 0.3.5.
 
-## Reading the result
+Build and container tests do not establish real-device upgrade or restore safety.
+A StartOS device test is still required. Keep the API local; it has no login and
+must not be port-forwarded as a public live-price service.
 
-Open the **Web UI** interface to see the chart.
-
-The first run takes several minutes: the interface comes up straight away, but the chart only appears once the computation finishes. The **UTXOracle Completion** health check tells you which stage you are in — it reports that the run is still going, and then whether it succeeded or failed.
-
-Every run recomputes from the chain. Nothing is cached and no history of past results is kept, so re-running a date gives you the same answer rather than a stored one.
+The original custom license is retained, including its API and naming
+restrictions. This is not an official Steve/UTXOracle release or a statement that
+those restrictions have been resolved.

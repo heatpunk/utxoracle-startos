@@ -32,15 +32,21 @@ export const main = sdk.setupMain(async ({ effects }) => {
     .const()
   const [rpcHost, rpcPortExternal] = rpcAddress?.split(':') ?? []
 
-  // Only Bitcoin's volume is mounted (read-only, for the RPC cookie);
-  // UTXOracle keeps no state of its own.
-  const mounts = sdk.Mounts.of().mountDependency<BitcoinCoreManifest>({
-    dependencyId: 'bitcoind',
-    volumeId: 'main',
-    subpath: null,
-    mountpoint: bitcoinMountpoint,
-    readonly: true,
-  })
+  // Keep observed hourly history across restarts; never copy Bitcoin's cookie.
+  const mounts = sdk.Mounts.of()
+    .mountVolume({
+      volumeId: 'main',
+      subpath: null,
+      mountpoint: '/data',
+      readonly: false,
+    })
+    .mountDependency<BitcoinCoreManifest>({
+      dependencyId: 'bitcoind',
+      volumeId: 'main',
+      subpath: null,
+      mountpoint: bitcoinMountpoint,
+      readonly: true,
+    })
 
   const subcontainer = sdk.SubContainer.of(
     effects,
@@ -77,29 +83,34 @@ export const main = sdk.setupMain(async ({ effects }) => {
       ready: {
         display: i18n('UTXOracle Completion'),
         fn: async () => {
-          // The entrypoint writes utxoracle.py's exit code here once it finishes.
-          // A nonzero `cat` exit means the file is absent: still computing.
           const res = await subcontainer.exec(
-            ['cat', '/tmp/utxoracle_exit_code'],
+            [
+              'python3',
+              '-c',
+              "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health', timeout=5).read()",
+            ],
             { timeout: 10_000 },
           )
-          if (res.exitCode !== 0) {
-            return {
-              result: 'loading',
-              message: i18n('UTXOracle is still running'),
-            }
-          }
-          const code = String(res.stdout).trim()
-          if (code === '0') {
+          if (res.exitCode === 0) {
             return {
               result: 'success',
               message: i18n('UTXOracle completed successfully'),
             }
           }
-          return {
-            result: 'failure',
-            message: `${i18n('UTXOracle exited with an error')} (exit code ${code})`,
-          }
+          const state = await subcontainer.exec(
+            [
+              'python3',
+              '-c',
+              "import json,pathlib; p=pathlib.Path('/data/state.json'); s=json.loads(p.read_text()) if p.exists() else {}; print('failed' if s.get('error') or s.get('samples') else 'loading')",
+            ],
+            { timeout: 10_000 },
+          )
+          return String(state.stdout).trim() === 'loading'
+            ? { result: 'loading', message: i18n('UTXOracle is still running') }
+            : {
+                result: 'failure',
+                message: i18n('UTXOracle exited with an error'),
+              }
         },
         trigger: sdk.trigger.statusTrigger(30_000, {
           starting: 5_000,

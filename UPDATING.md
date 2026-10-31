@@ -1,29 +1,30 @@
-# Updating UTXOracle for StartOS
+# Updating the hourly API package
 
-## Determining the upstream version
+The `upstream` git submodule pins a verified commit of
+<https://github.com/heatpunk/UTXOracle>. It descends from
+`Unbesteveable/UTXOracle` and keeps the original calculation and block selection.
+Do not edit the submodule source in this wrapper or download a moving script
+into the image during a build.
 
-`utxoracle.py` is vendored **verbatim** from upstream — a single self-contained Python script with no third-party dependencies:
+Make app changes in the application fork, test them, and push that commit first.
+Update the submodule to that exact commit, run the wrapper and app tests,
+typecheck and format `startos/`, then build both architectures through GitHub CI.
+Inspect the produced package version, architecture, migration ranges, source
+commit and embedded runtime before publishing a test release.
 
-```bash
-curl -fsSL https://utxo.live/oracle/UTXOracle.py
-```
+Keep the package ID `utxoracle`. Advance the packaging revision beyond the
+published package instead of resetting version ordering. Version `0.9.6:9`
+retired a legacy host and its migration stays in `v0.9.6_9.ts`; do not move that
+operation into the newest migration or delete its graph entry.
 
-The version is named in the banner near the top of the file (currently "Version 9.1 RPC Only").
+The `main` volume holds observed hourly history and the last chart. The existing
+`startos` volume holds Configure settings. Include both in backup. Never copy or
+expose the Bitcoin cookie from its read-only dependency mount.
 
-## Applying the bump
+Registry release workflows are gated to Start9-Community. Build-only workflows
+in this fork use temporary test signing identities and publish no registry entry.
+A test prerelease must point at CI-produced files from the exact verified head.
+A successful build is not a real-device installation, upgrade or restore test.
 
-1. Re-download and replace `utxoracle.py` verbatim:
-
-   ```bash
-   curl -fsSL https://utxo.live/oracle/UTXOracle.py -o utxoracle.py
-   ```
-
-   This package does **not** patch the script — it is a thin wrapper. `docker_entrypoint.sh` supplies a `bitcoin.conf` (RPC host/port from the `RPC_HOST`/`RPC_PORT` env vars StartOS injects — `startos/main.ts` resolves Bitcoin's bound RPC interface over the internal bridge — plus the cookie path) pointing at the StartOS Bitcoin service and serves the HTML the script produces, so the upstream script runs unmodified. After updating, confirm upstream still reads `bitcoin.conf` for `rpcconnect`/`rpcport`/`rpccookiefile` and still writes an `UTXOracle_*.html` file; if those conventions change, adjust `docker_entrypoint.sh` (never the script).
-
-   **Privacy:** the entrypoint also strips the upstream "Live Updating Oracle" promo and its autoplay YouTube `<iframe>` from the result page so a self-hosted instance makes no external (Google/YouTube) requests — that iframe is the page's only external resource. After updating, re-check the served page for external URLs (`grep -E 'https?://' index.html`) and adjust the `sed` in `docker_entrypoint.sh` if upstream changes the markup. Ideally, ask upstream for a `--private`/`--no-embed` flag so this strip becomes unnecessary.
-
-2. Bump the `python:*-slim` base image in `Dockerfile` only if a newer Python is required.
-
-3. Update `startos/versions/current.ts` with the new ExVer package version and release notes.
-
-4. If the update changes persistent data or config format, move the previous `current.ts` into a version-named file and add it to `startos/versions/index.ts` so migrations remain available.
+The original `LICENSE` remains unchanged. App-source availability does not
+resolve its API, naming, or commercial restrictions.
