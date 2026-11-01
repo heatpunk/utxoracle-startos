@@ -11,11 +11,10 @@ Use the same StartOS origin as the Web UI:
 
 - `/price`: only the formatted whole-dollar USD price, such as `$123 456`.
 - `/price.json`: numeric amount, timestamps, output name and input block provenance.
-- `/history.json`: up to 24 actual hourly samples from the last 24 hours.
 - `/health`: 200 for a usable result; 503 for unavailable or stale results.
 - `/`: the original chart, refreshed by the same hourly calculation.
 
-The Price API and Price History interfaces show their complete URLs in StartOS.
+The Price API interface shows its complete URL in StartOS.
 No RPC credential, wallet data, source directory or arbitrary files are exposed.
 There is no API authentication. Keep the interface local; do not publish it as
 an Internet service. Cross-origin read-only requests are supported for local
@@ -38,7 +37,7 @@ fallback node.
 
 `main` is the new writable volume, mounted at `/data`. It contains only:
 
-- `state.json`: the last attempted hour and up to 24 successful hourly observations.
+- `state.json`: the last attempted hour and the latest successful observation.
 - `index.html`: the original chart from the last completed calculation.
 
 The existing `startos` volume keeps `store.json`, the Configure selection. Both
@@ -51,15 +50,15 @@ backup/restore behavior still require real-device testing.
 
 First installation computes immediately. Each subsequent attempt starts at the
 top of a UTC hour, independently of HTTP requests. Computation can take several
-minutes. A same-hour restart does not create a second sample. Failed attempts,
-interrupted attempts and offline hours remain gaps. It takes a day of successful
-operation to accumulate a full 24-point history; no invented data is preloaded.
+minutes. A same-hour restart does not create a second sample. Each new
+observation replaces the previous one; no price is interpolated or invented for
+hours that never ran.
 
 The default is the reference recent-block mode. At node height H it processes
 H-144 through H-1, exactly like the source script. It is not a new one-hour
 transaction window or a new six-confirmation rule. The Configure action retains
-Yesterday and Specific Date; changing mode starts a separate history rather than
-mixing different price definitions.
+Yesterday and Specific Date; changing mode recomputes under the chosen price
+definition rather than mixing different kinds of prices.
 
 Price endpoints return 503 after a failed update or when an observation is two
 hours old. Recent-block mode also treats a newest input block two hours old as

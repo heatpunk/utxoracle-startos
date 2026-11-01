@@ -12,19 +12,17 @@ several minutes; then it updates once each UTC hour.
 
 The **Web UI** interface still displays the original chart. The **Price API**
 interface gives you the exact URL that returns only a value such as `$123 456`.
-The **Price History** interface gives your control panel up to 24 hourly points
-as JSON. Their paths on the same origin are `/price` and `/history.json`.
 
 Use the API URL as your panel's source. No image parsing or HTML scraping is
 needed. `/price.json` also returns a numeric price, timestamps and input block
 information. Prices are USD per BTC.
 
-## History and errors
+## Hourly update and errors
 
-The history starts with the first real calculation and fills over time; it does
-not pretend to have prices from before installation. It survives restart and is
-included in the service backup. Missing and failed hours are gaps, not invented
-prices.
+The price is recomputed at the top of each UTC hour from your own node and each
+new observation replaces the previous one. Nothing is invented for hours that
+never ran. The last real observation survives restart and is included in the
+service backup.
 
 Before the first calculation, after a failed update, or if data is too old,
 `/price` responds with HTTP 503 instead of pretending that an old price is current.
@@ -33,8 +31,8 @@ Completion health check tracks this condition. Read the service logs if it fails
 The next scheduled attempt is the next UTC hour.
 
 Configure also retains **Yesterday** and **Specific Date** for the original
-historical modes. Changing the mode starts a new history so different kinds of
-prices are not mixed. Historical dates require locally available blocks.
+historical modes. Changing the mode recomputes under the chosen price
+definition. Historical dates require locally available blocks.
 
 ## Test-package scope
 

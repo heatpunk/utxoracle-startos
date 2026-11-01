@@ -32,7 +32,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     .const()
   const [rpcHost, rpcPortExternal] = rpcAddress?.split(':') ?? []
 
-  // Keep observed hourly history across restarts; never copy Bitcoin's cookie.
+  // Keep the last hourly observation across restarts; never copy Bitcoin's cookie.
   const mounts = sdk.Mounts.of()
     .mountVolume({
       volumeId: 'main',

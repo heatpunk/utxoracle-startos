@@ -17,7 +17,7 @@ published package instead of resetting version ordering. Version `0.9.6:9`
 retired a legacy host and its migration stays in `v0.9.6_9.ts`; do not move that
 operation into the newest migration or delete its graph entry.
 
-The `main` volume holds observed hourly history and the last chart. The existing
+The `main` volume holds the last hourly observation and the last chart. The existing
 `startos` volume holds Configure settings. Include both in backup. Never copy or
 expose the Bitcoin cookie from its read-only dependency mount.
 

@@ -30,18 +30,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     path: '/price',
     query: {},
   })
-  const history = sdk.createInterface(effects, {
-    name: 'Price History',
-    id: 'history',
-    description: 'Observed hourly USD prices from the last 24 hours as JSON',
-    type: 'api',
-    masked: true,
-    schemeOverride: null,
-    username: null,
-    path: '/history.json',
-    query: {},
-  })
-  const uiReceipt = await uiMultiOrigin.export([ui, price, history])
+  const uiReceipt = await uiMultiOrigin.export([ui, price])
 
   return [uiReceipt]
 })
