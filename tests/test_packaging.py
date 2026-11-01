@@ -19,10 +19,21 @@ class PackagingTests(unittest.TestCase):
         main = (ROOT / "startos/main.ts").read_text()
         manifest = (ROOT / "startos/manifest/index.ts").read_text()
         backup = (ROOT / "startos/backups.ts").read_text()
-        self.assertIn("volumeId: 'main'", main)
-        self.assertIn("mountpoint: '/data'", main)
+        app_volume = main[main.index("mountVolume({") : main.index("mountDependency")]
+        self.assertIn("volumeId: 'main'", app_volume)
+        self.assertIn("mountpoint: '/data'", app_volume)
+        self.assertIn("readonly: false", app_volume)
+        self.assertIn("readonly: true", main[main.index("mountDependency") :])
         self.assertIn("'main'", manifest)
         self.assertIn("'main'", backup)
+        self.assertIn("'startos'", backup)
+
+    def test_previous_version_keeps_its_legacy_host_migration(self):
+        graph = (ROOT / "startos/versions/index.ts").read_text()
+        previous = (ROOT / "startos/versions/v0.9.6_9.ts").read_text()
+        self.assertIn("v0969", graph)
+        self.assertIn("version: '0.9.6:9'", previous)
+        self.assertIn("MultiHost.of(effects, 'main').retire()", previous)
 
     def test_price_endpoint_is_visible_as_a_startos_api_interface(self):
         text = (ROOT / "startos/interfaces.ts").read_text()
